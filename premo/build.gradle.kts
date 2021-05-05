@@ -54,6 +54,9 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(kotlin("test-junit"))
+                // Doesn't work in multiplatform yet (https://github.com/Kotlin/kotlinx.coroutines/issues/1996).
+                // So test common code with coroutines in anrdroidTest for now.
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.4.1")
             }
         }
 

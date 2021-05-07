@@ -58,7 +58,7 @@ class Action<T>(scope: CoroutineScope) {
 
     operator fun invoke(value: T) {
 //        channel.offer(value)
-        if (!emissionInProgress) println("tryEmit $value to inFlow = ${inFlow.tryEmit(value)}")
+        if (!emissionInProgress) inFlow.tryEmit(value)
     }
 }
 

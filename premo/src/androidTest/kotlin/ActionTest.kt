@@ -21,7 +21,6 @@ class ActionTest {
                     println("collected $it")
                     results += it
                     delay(5000)
-                    println("after delay $it")
                 }
         }
 

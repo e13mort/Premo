@@ -24,24 +24,41 @@
 
 package me.dmdev.premo
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
-class Action<T> {
+class Action<T>(scope: CoroutineScope) {
 
-    private val channel = Channel<T>(
-        capacity = Channel.RENDEZVOUS,
-        onBufferOverflow = BufferOverflow.SUSPEND
-    )
+//    private val channel = Channel<T>(
+//        capacity = Channel.RENDEZVOUS,
+//        onBufferOverflow = BufferOverflow.SUSPEND
+//    )
+//    private val inFlow = channel.consumeAsFlow()
+    private val inFlow = MutableSharedFlow<T>(extraBufferCapacity = 1) // Buffer here is just a workaround to use tryEmit
 
-    fun flow(): Flow<T> = channel.receiveAsFlow()
+    private val outFlow = MutableSharedFlow<T>()
+
+    private var emissionInProgress: Boolean = false
+
+    init {
+        scope.launch {
+            inFlow
+                .collect {
+                    emissionInProgress = true
+                    outFlow.emit(it)
+                    emissionInProgress = false
+                }
+        }
+    }
+
+    fun flow(): Flow<T> = outFlow.filter { emissionInProgress } // Filter that came after suspending
 
     operator fun invoke(value: T) {
-        channel.offer(value)
+//        channel.offer(value)
+        if (!emissionInProgress) println("tryEmit $value to inFlow = ${inFlow.tryEmit(value)}")
     }
 }
 
@@ -54,7 +71,7 @@ fun <T> PresentationModel.ActionChain(
     actionChain: (Flow<T>.() -> Flow<*>)
 ): Action<T> {
 
-    val action = Action<T>()
+    val action = Action<T>(pmScope)
 
     actionChain
         .invoke(action.flow())
@@ -68,7 +85,7 @@ fun <T> PresentationModel.Action(
     doAction: suspend PresentationModel.(value: T) -> Unit
 ): Action<T> {
 
-    val action = Action<T>()
+    val action = Action<T>(pmScope)
 
     action.flow()
         .onEach { doAction(it) }
